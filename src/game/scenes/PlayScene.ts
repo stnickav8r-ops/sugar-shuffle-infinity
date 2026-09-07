@@ -109,7 +109,10 @@ export class PlayScene extends Phaser.Scene {
     s("bg-forest", "/game/bg/lolly-pop-forest.jpg");
     s("bg-mountain", "/game/bg/butter-scotch-mountain.jpg");
     s("bg-hub", "/game/bg/hub-interior.jpg");
-    s("bg-desert", "/game/bg/desert.jpg");
+    s("bg-desert", "/game/bg/sugar-rush-desert.jpg");
+    s("bg-farm", "/game/bg/cookie-war-farm.jpg");
+    s("bg-showdown", "/game/bg/sour-showdown.jpg");
+    s("bg-dune", "/game/bg/butter-scotch-dune.jpg");
     s("bg-landfill", "/game/bg/landfill.jpg");
     s("bg-plex", "/game/bg/plex.jpg");
     s("ground-candy", "/game/sprites/ground-candy.png");
@@ -229,6 +232,10 @@ export class PlayScene extends Phaser.Scene {
     if (p.includes("hub")) return "bg-hub";
     if (p.includes("lolly-pop-forest")) return "bg-forest";
     if (p.includes("butter-scotch-mountain")) return "bg-mountain";
+    if (p.includes("butter-scotch-dune")) return "bg-dune";
+    if (p.includes("cookie-war-farm")) return "bg-farm";
+    if (p.includes("sour-showdown")) return "bg-showdown";
+    if (p.includes("sugar-rush-desert")) return "bg-desert";
     if (p.includes("marsh-mellow-mash") || p.includes("marsh-mash")) return "bg-mash";
     if (p.includes("desert")) return "bg-desert";
     if (p.includes("landfill")) return "bg-landfill";
@@ -721,15 +728,20 @@ export class PlayScene extends Phaser.Scene {
   }
 
   private tickBoss(m: Mob, now: number) {
+    const id = this.level.bossId ?? "f1-boss";
+    if (id === "f1-boss") {
+      this.tickChocoMan(m, now);
+      return;
+    }
     const body = m.spr.body as Phaser.Physics.Arcade.Body;
     const dx = this.player.x - m.spr.x;
     m.dir = dx < 0 ? -1 : 1;
     if (now < m.next) {
       body.setVelocityX(0);
+      this.bossMelee(m, 52);
       return;
     }
-    const id = this.level.bossId ?? "f1-boss";
-    if (id === "f1-boss" || id === "f3-boss") {
+    if (id === "f3-boss") {
       body.setVelocityX(m.dir * 340);
       m.next = now + 1100;
       this.time.delayedCall(420, () => {
@@ -754,9 +766,162 @@ export class PlayScene extends Phaser.Scene {
       m.next = now + 800;
       this.openBoss(m);
     }
-    if (this.hurtT <= 0 && this.shieldT <= 0 && this.invulnT <= 0) {
-      if (Phaser.Math.Distance.Between(this.player.x, this.player.y, m.spr.x, m.spr.y) < 52) this.hurt(1);
+    this.bossMelee(m, 52);
+  }
+
+  private bossMelee(m: Mob, reach: number) {
+    if (this.hurtT > 0 || this.shieldT > 0 || this.invulnT > 0) return;
+    if (!this.player.active) return;
+    if (Phaser.Math.Distance.Between(this.player.x, this.player.y, m.spr.x, m.spr.y) < reach) this.hurt(1);
+  }
+
+  private endChocoMove(m: Mob, recover = 620) {
+    m.spr.setData("move", "");
+    m.spr.setRotation(0);
+    const body = m.spr.body as Phaser.Physics.Arcade.Body;
+    body.setVelocityX(0);
+    this.openBoss(m);
+    m.next = this.time.now + recover;
+  }
+
+  private tickChocoMan(m: Mob, now: number) {
+    const body = m.spr.body as Phaser.Physics.Arcade.Body;
+    const grounded = body.blocked.down || body.touching.down;
+    const dx = this.player.x - m.spr.x;
+    const dist = Math.abs(dx);
+    const move = String(m.spr.getData("move") ?? "");
+    const until = Number(m.spr.getData("moveUntil") ?? 0);
+    if (move !== "tatsu") m.dir = dx < 0 ? -1 : 1;
+
+    if (move === "shoryuken") {
+      this.bossMelee(m, 84);
+      if (!grounded) body.setVelocityX(m.dir * 110);
+      if (grounded && now > until) this.endChocoMove(m, 500);
+      return;
     }
+    if (move === "tatsu") {
+      this.bossMelee(m, 72);
+      if (body.blocked.left) m.dir = 1;
+      if (body.blocked.right) m.dir = -1;
+      m.spr.rotation += m.dir * 0.42;
+      body.setVelocityX(m.dir * (m.hp <= 3 ? 560 : 470));
+      if (grounded && now < until - 80 && Math.random() < 0.12) body.setVelocityY(-280);
+      if (now > until) this.endChocoMove(m, 560);
+      return;
+    }
+    if (move === "jump") {
+      this.bossMelee(m, 58);
+      if (grounded && now > until) {
+        if (m.hp <= 5 && dist > 80) this.chocoHadoken(m);
+        else this.endChocoMove(m, 460);
+      }
+      return;
+    }
+    if (move === "rush") {
+      this.bossMelee(m, 64);
+      body.setVelocityX(m.dir * 400);
+      if (now > until) this.endChocoMove(m, 480);
+      return;
+    }
+    if (move === "hadoken") {
+      if (now > until) this.endChocoMove(m, 680);
+      return;
+    }
+
+    if (now < m.next) {
+      if (grounded) body.setVelocityX(body.velocity.x * 0.82);
+      this.bossMelee(m, 46);
+      return;
+    }
+
+    const angry = m.hp <= 3;
+    let pick = "rush";
+    if (this.player.y < m.spr.y - 70 && dist < 240) pick = "shoryuken";
+    else if (dist > 260) pick = Math.random() < 0.72 ? "hadoken" : "jump";
+    else if (dist < 100) pick = Math.random() < 0.6 ? "shoryuken" : "tatsu";
+    else {
+      const pool = ["rush", "tatsu", "jump", "hadoken"] as const;
+      pick = pool[Math.floor(Math.random() * pool.length)]!;
+    }
+    if (angry && Math.random() < 0.4) pick = dist < 140 ? "shoryuken" : "tatsu";
+
+    if (pick === "hadoken") this.chocoHadoken(m);
+    else if (pick === "shoryuken") this.chocoShoryuken(m);
+    else if (pick === "tatsu") this.chocoTatsu(m);
+    else if (pick === "jump") this.chocoJump(m);
+    else this.chocoRush(m);
+  }
+
+  private chocoBall(x: number, y: number, dir: number) {
+    const b = this.shots.create(x, y, "pickups", 0) as Phaser.Physics.Arcade.Sprite;
+    b.setDisplaySize(36, 30);
+    b.setTint(0x5c2a10);
+    b.setData("friendly", false);
+    const body = b.body as Phaser.Physics.Arcade.Body;
+    body.setAllowGravity(false);
+    body.setVelocity(dir * 360, 0);
+    this.time.delayedCall(2200, () => b.destroy());
+  }
+
+  private beginChocoMove(m: Mob, move: string, until: number) {
+    m.spr.setData("move", move);
+    m.spr.setData("moveUntil", until);
+    m.spr.setData("open", false);
+    m.spr.clearTint();
+  }
+
+  private chocoHadoken(m: Mob) {
+    this.beginChocoMove(m, "hadoken", this.time.now + 360);
+    this.pop(m.spr.x, m.spr.y - 88, "HADOKEN");
+    sfx.hadoken();
+    const dir = m.dir;
+    this.chocoBall(m.spr.x + dir * 40, m.spr.y - 10, dir);
+    this.incoming++;
+    if (m.hp <= 4) {
+      this.time.delayedCall(140, () => {
+        if (!m.spr.active) return;
+        this.chocoBall(m.spr.x + dir * 40, m.spr.y - 22, dir);
+        this.incoming++;
+      });
+    }
+  }
+
+  private chocoShoryuken(m: Mob) {
+    const body = m.spr.body as Phaser.Physics.Arcade.Body;
+    this.beginChocoMove(m, "shoryuken", this.time.now + 220);
+    this.pop(m.spr.x, m.spr.y - 88, "SHORYUKEN");
+    sfx.shoryuken();
+    body.setVelocityY(m.hp <= 3 ? -980 : -860);
+    body.setVelocityX(m.dir * 150);
+    this.incoming++;
+  }
+
+  private chocoTatsu(m: Mob) {
+    const body = m.spr.body as Phaser.Physics.Arcade.Body;
+    this.beginChocoMove(m, "tatsu", this.time.now + (m.hp <= 3 ? 920 : 720));
+    this.pop(m.spr.x, m.spr.y - 88, "TATSUMAKI");
+    sfx.tatsu();
+    body.setVelocityY(-340);
+    body.setVelocityX(m.dir * 500);
+    this.incoming++;
+  }
+
+  private chocoJump(m: Mob) {
+    const body = m.spr.body as Phaser.Physics.Arcade.Body;
+    this.beginChocoMove(m, "jump", this.time.now + 180);
+    this.pop(m.spr.x, m.spr.y - 72, "JUMP-IN");
+    sfx.jump();
+    body.setVelocityY(-800);
+    body.setVelocityX(m.dir * 320);
+  }
+
+  private chocoRush(m: Mob) {
+    const body = m.spr.body as Phaser.Physics.Arcade.Body;
+    this.beginChocoMove(m, "rush", this.time.now + 440);
+    this.pop(m.spr.x, m.spr.y - 80, "ELBOW");
+    sfx.attack();
+    body.setVelocityX(m.dir * 420);
+    this.incoming++;
   }
 
   private shoot(x: number, y: number, dir: number, friendly = false) {

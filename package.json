@@ -1,6 +1,12 @@
 {
-  "name": "app-builder-workspace",
+  "name": "sugar-shuffle-infinity",
+  "version": "0.2.0",
   "private": true,
+  "description": "Pizza Tower-inspired candy platformer. Cuboe and Cubro save Halloween from the Candy Warlock.",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=20.11"
+  },
   "sideEffects": false,
   "type": "module",
   "overrides": {

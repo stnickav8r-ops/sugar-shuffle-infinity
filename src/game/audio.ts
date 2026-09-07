@@ -65,6 +65,15 @@ export const sfx = {
   lose: () => beep(200, 0.4, "sawtooth", 0.12, -140),
   ui: () => beep(480, 0.06, "square", 0.05),
   boom: () => beep(70, 0.28, "triangle", 0.16, -20),
+  hadoken: () => {
+    beep(160, 0.22, "sawtooth", 0.12, 420);
+    beep(70, 0.28, "square", 0.08, 180);
+  },
+  shoryuken: () => {
+    beep(240, 0.16, "square", 0.12, 520);
+    beep(90, 0.2, "triangle", 0.1, 80);
+  },
+  tatsu: () => beep(140, 0.26, "triangle", 0.11, 90),
 };
 
 export function startMusic() {

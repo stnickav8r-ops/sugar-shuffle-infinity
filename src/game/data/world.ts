@@ -47,14 +47,14 @@ export const FLOORS = [
       { id: "f1-3", name: "Lolly Pop Forest", kind: "level" as const },
       { id: "f1-4", name: "Butter Scotch Mountain", kind: "level" as const },
     ],
-    boss: { id: "f1-boss", name: "Choco Man", lives: 6 },
+    boss: { id: "f1-boss", name: "Choco Man", lives: 9 },
     keyCost: 400,
   },
   {
     id: 2,
     name: "Sugar Rush Desert",
     hubTitle: "Floor 2 Hub",
-    bg: "/game/bg/candy-corn-valley.jpg",
+    bg: "/game/bg/sugar-rush-desert.jpg",
     ground: "candy",
     tint: 0xffd08a,
     levels: [
@@ -136,9 +136,9 @@ export const BOSSES: Record<
   "f1-boss": {
     name: "Choco Man",
     sprite: "choco",
-    lives: 6,
-    moves: ["Elbow rush", "Melty slither", "Wall bounce"],
-    hitWhen: "After a rush, while he is flashing.",
+    lives: 9,
+    moves: ["Hadoken", "Shoryuken", "Tatsumaki", "Jump-in elbow"],
+    hitWhen: "After a special, while he is flashing.",
     lore: "Block 25% of his attacks to claim The Lore of Choco Man.",
   },
   "f2-boss": {
