@@ -135,6 +135,7 @@ export class PlayScene extends Phaser.Scene {
       this.bootWorld();
     } catch (err) {
       console.error(err);
+      this.frozen = true;
       emitGame({ t: "toast", text: "Couldn't load that room" });
       emitGame({ t: "ready" });
     }
@@ -1081,7 +1082,9 @@ export class PlayScene extends Phaser.Scene {
       this.unlockLore("fake-cuboe");
       this.pop(nearest.x, nearest.y, "LORE");
     }
-    if (!actions.upPressed && !(this.level.isHub && actions.jumpPressed)) return;
+    const jumpEnter =
+      this.level.isHub && actions.jumpPressed && (nearest.kind === "door" || nearest.kind === "boss");
+    if (!actions.upPressed && !jumpEnter) return;
     sfx.door();
     if (nearest.kind === "door") this.scene.restart({ levelId: nearest.id });
     if (nearest.kind === "pc") emitGame({ t: "interact", kind: "pc", id: "pc" });
@@ -1131,6 +1134,7 @@ export class PlayScene extends Phaser.Scene {
     const next = floor + 1;
     const unlocked = Array.from(new Set([...useGame.getState().save.unlockedFloors, next]));
     useGame.getState().persist({ floor: next, unlockedFloors: unlocked });
+    this.frozen = true;
     this.scene.restart({ levelId: hubIdFor(next) });
   }
 
@@ -1217,6 +1221,7 @@ export class PlayScene extends Phaser.Scene {
 
   freeze() {
     this.frozen = true;
+    setInjected([]);
   }
 
   unfreeze() {

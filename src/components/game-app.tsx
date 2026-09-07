@@ -28,11 +28,42 @@ function unlock() {
 export function GameApp() {
   const { screen, setScreen, save, persist, setHud, lastRank, toast, setToast } = useGame();
   const host = useRef<HTMLDivElement>(null);
+  const menuFrom = useRef<Screen>("title");
   const [booted, setBooted] = useState(false);
   const [ready, setReady] = useState(false);
   const [bootKey, setBootKey] = useState(0);
   const [code, setCode] = useState("");
   const [codeMsg, setCodeMsg] = useState("");
+
+  const backToPlay = () => {
+    void import("@/game/phaserGame").then((m) => m.getPlay()?.unfreeze());
+    setScreen("playing");
+  };
+
+  const closeMenu = () => {
+    sfx.ui();
+    const from = menuFrom.current;
+    const nested = screen === "minigames" || screen === "lore" || screen === "codes" || screen === "endings" || screen === "how";
+    if (nested && from === "playing") {
+      setScreen("gallery");
+      return;
+    }
+    if (from === "pause") {
+      setScreen("pause");
+      return;
+    }
+    if (from === "playing" || (booted && from !== "title")) {
+      backToPlay();
+      return;
+    }
+    setScreen("title");
+  };
+
+  const openMenu = (s: Screen, from: Screen = screen) => {
+    sfx.ui();
+    menuFrom.current = from;
+    setScreen(s);
+  };
 
   const goTitle = () => {
     stopMusic();
@@ -66,8 +97,11 @@ export function GameApp() {
       else if (e.t === "win") {
         useGame.setState({ ending: e.ending });
         setScreen("ending");
-      } else if (e.t === "interact") setScreen("gallery");
-      else if (e.t === "toast") setToast(e.text);
+      } else if (e.t === "interact") {
+        menuFrom.current = "playing";
+        void import("@/game/phaserGame").then((m) => m.getPlay()?.freeze());
+        setScreen("gallery");
+      } else if (e.t === "toast") setToast(e.text);
       else if (e.t === "ready") setReady(true);
     });
     return () => {
@@ -204,7 +238,7 @@ export function GameApp() {
             void import("@/game/phaserGame").then((m) => m.destroyGame());
             setScreen("select");
           }}
-          go={setScreen}
+          go={(s) => openMenu(s, "title")}
         />
       )}
       {screen === "select" && <Select onPick={playAs} onBack={goTitle} />}
@@ -212,7 +246,7 @@ export function GameApp() {
         <Modal title="Paused">
           <Btn onClick={resume}>Resume</Btn>
           <Btn onClick={toHub} tone="ghost">Floor hub</Btn>
-          <Btn onClick={() => setScreen("how")} tone="ghost">Controls</Btn>
+          <Btn onClick={() => openMenu("how", "pause")} tone="ghost">Controls</Btn>
           <Btn onClick={goTitle} tone="ghost">
             Title
           </Btn>
@@ -233,13 +267,13 @@ export function GameApp() {
         </Modal>
       )}
       {screen === "ending" && <Ending go={setScreen} />}
-      {screen === "how" && <How go={setScreen} />}
-      {screen === "lore" && <Lore go={setScreen} />}
-      {screen === "gallery" && <Gallery go={setScreen} />}
-      {screen === "minigames" && <Minis go={setScreen} />}
+      {screen === "how" && <How onClose={closeMenu} />}
+      {screen === "lore" && <Lore onClose={closeMenu} />}
+      {screen === "gallery" && <Gallery go={setScreen} onClose={closeMenu} />}
+      {screen === "minigames" && <Minis onClose={closeMenu} />}
       {screen === "codes" && (
         <Codes
-          go={setScreen}
+          onClose={closeMenu}
           value={code}
           setValue={setCode}
           msg={codeMsg}
@@ -256,7 +290,7 @@ export function GameApp() {
           }}
         />
       )}
-      {screen === "endings" && <Endings go={setScreen} />}
+      {screen === "endings" && <Endings onClose={closeMenu} />}
 
       {toast && (
         <div className="pointer-events-none absolute left-1/2 top-16 z-40 -translate-x-1/2 rounded-full border border-cream/15 bg-ink/80 px-4 py-2 text-sm font-bold">
@@ -268,7 +302,7 @@ export function GameApp() {
         <button
           type="button"
           className="absolute left-3 top-3 z-40 rounded-full border border-cream/15 bg-ink/70 px-3 py-2 text-xs font-bold uppercase tracking-wide"
-          onClick={() => setScreen(booted ? "pause" : "title")}
+          onClick={closeMenu}
         >
           Back
         </button>
@@ -399,7 +433,7 @@ function Select({ onPick, onBack }: { onPick: (h: HeroId) => void; onBack: () =>
   );
 }
 
-function How({ go }: { go: (s: Screen) => void }) {
+function How({ onClose }: { onClose: () => void }) {
   return (
     <Modal title="Controls">
       <ul className="space-y-1 text-left text-sm text-cream-dim">
@@ -407,18 +441,18 @@ function How({ go }: { go: (s: Screen) => void }) {
         <li>Space / K — jump (coyote + buffer). Down + jump drops through</li>
         <li>J — attack · Q / C — special (Cuboe shield, Cubro barrier)</li>
         <li>Up + J — Cuboe beams / Cubro burst · Up + Q — black hole / infinity</li>
-        <li>Shift — mach run · Up / W — enter doors</li>
+        <li>Shift — mach run · Up / W — enter doors, station, elevator</li>
         <li>Esc — pause</li>
       </ul>
       <p className="text-left text-sm text-cream-dim">
         Grab the end door to start Sugar Time, then race back to the start. Pay 400 candy bux after four rooms to open the boss gate.
       </p>
-      <Btn onClick={() => go("title")}>Close</Btn>
+      <Btn onClick={onClose}>Close</Btn>
     </Modal>
   );
 }
 
-function Lore({ go }: { go: (s: Screen) => void }) {
+function Lore({ onClose }: { onClose: () => void }) {
   const { save } = useGame();
   return (
     <Sheet title="Secret collectibles">
@@ -435,7 +469,7 @@ function Lore({ go }: { go: (s: Screen) => void }) {
       </ul>
       <h3 className="mt-6 font-display text-xl">Combos</h3>
       <ComboList />
-      <Btn onClick={() => go("title")}>Close</Btn>
+      <Btn onClick={onClose}>Back</Btn>
     </Sheet>
   );
 }
@@ -459,28 +493,29 @@ function ComboList() {
   );
 }
 
-function Gallery({ go }: { go: (s: Screen) => void }) {
+function Gallery({ go, onClose }: { go: (s: Screen) => void; onClose: () => void }) {
   return (
     <Sheet title="Pumpkin station">
-      <p className="text-sm text-cream-dim">The hub PC. Press Up on the station in a floor hub to return here anytime.</p>
+      <p className="text-sm text-cream-dim">Hub PC. Minigames, lore, codes, and endings. Close returns you to the floor hub.</p>
       <div className="mt-4 grid grid-cols-2 gap-2">
         <Btn onClick={() => go("lore")}>Lore gallery</Btn>
         <Btn onClick={() => go("codes")} tone="ghost">Promo codes</Btn>
         <Btn onClick={() => go("minigames")} tone="ghost">Minigames</Btn>
         <Btn onClick={() => go("endings")} tone="ghost">Endings</Btn>
       </div>
+      <Btn tone="ghost" onClick={onClose}>Back to hub</Btn>
     </Sheet>
   );
 }
 
 function Codes({
-  go,
+  onClose,
   value,
   setValue,
   msg,
   onSubmit,
 }: {
-  go: (s: Screen) => void;
+  onClose: () => void;
   value: string;
   setValue: (v: string) => void;
   msg: string;
@@ -511,14 +546,14 @@ function Codes({
           <li key={p.code}>{save.promo.includes(p.reward) ? p.label : "••••"}</li>
         ))}
       </ul>
-      <Btn tone="ghost" onClick={() => go("title")}>
-        Close
+      <Btn tone="ghost" onClick={onClose}>
+        Back
       </Btn>
     </Sheet>
   );
 }
 
-function Endings({ go }: { go: (s: Screen) => void }) {
+function Endings({ onClose }: { onClose: () => void }) {
   const { save } = useGame();
   return (
     <Sheet title="Endings">
@@ -530,7 +565,7 @@ function Endings({ go }: { go: (s: Screen) => void }) {
           </li>
         ))}
       </ul>
-      <Btn onClick={() => go("title")}>Close</Btn>
+      <Btn onClick={onClose}>Back</Btn>
     </Sheet>
   );
 }
@@ -546,7 +581,7 @@ function Ending({ go }: { go: (s: Screen) => void }) {
   );
 }
 
-function Minis({ go }: { go: (s: Screen) => void }) {
+function Minis({ onClose }: { onClose: () => void }) {
   const [active, setActive] = useState<string | null>(null);
   const { save } = useGame();
   const ranked = (id: string) => {
@@ -580,8 +615,8 @@ function Minis({ go }: { go: (s: Screen) => void }) {
           );
         })}
       </div>
-      <Btn tone="ghost" onClick={() => go("title")}>
-        Close
+      <Btn tone="ghost" onClick={onClose}>
+        Back
       </Btn>
     </Sheet>
   );
