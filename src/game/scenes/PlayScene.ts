@@ -105,7 +105,9 @@ export class PlayScene extends Phaser.Scene {
       if (!this.textures.exists(k)) this.load.spritesheet(k, path, { frameWidth: 128, frameHeight: 128 });
     };
     s("bg-valley", "/game/bg/candy-corn-valley.jpg");
-    s("bg-mash", "/game/bg/marsh-mash.jpg");
+    s("bg-mash", "/game/bg/marsh-mellow-mash.jpg");
+    s("bg-forest", "/game/bg/lolly-pop-forest.jpg");
+    s("bg-mountain", "/game/bg/butter-scotch-mountain.jpg");
     s("bg-hub", "/game/bg/hub-interior.jpg");
     s("bg-desert", "/game/bg/desert.jpg");
     s("bg-landfill", "/game/bg/landfill.jpg");
@@ -225,7 +227,9 @@ export class PlayScene extends Phaser.Scene {
   private bgKey() {
     const p = this.level.bg;
     if (p.includes("hub")) return "bg-hub";
-    if (p.includes("marsh")) return "bg-mash";
+    if (p.includes("lolly-pop-forest")) return "bg-forest";
+    if (p.includes("butter-scotch-mountain")) return "bg-mountain";
+    if (p.includes("marsh-mellow-mash") || p.includes("marsh-mash")) return "bg-mash";
     if (p.includes("desert")) return "bg-desert";
     if (p.includes("landfill")) return "bg-landfill";
     if (p.includes("plex")) return "bg-plex";
@@ -288,15 +292,16 @@ export class PlayScene extends Phaser.Scene {
       .setDepth(8);
   }
 
-  private drawDoor(x: number, y: number, label: string, kind: "room" | "boss" | "up" | "pc") {
+  private drawDoor(x: number, y: number, label: string, kind: "room" | "boss" | "up" | "pc", accent?: number) {
     const g = this.add.graphics().setDepth(2);
     const w = 46;
     const h = 72;
     const top = y - 20 - h / 2;
     const col = kind === "boss" ? 0x1a0808 : kind === "up" ? 0x2a1810 : 0x3a1a10;
+    const line = accent ?? (kind === "boss" ? 0xff4d7a : 0xfff4d6);
     g.fillStyle(col, 1);
     g.fillRoundedRect(x - w / 2, top, w, h, 8);
-    g.lineStyle(3, kind === "boss" ? 0xff4d7a : 0xfff4d6, 0.9);
+    g.lineStyle(3, line, 0.95);
     g.strokeRoundedRect(x - w / 2, top, w, h, 8);
     if (kind === "boss") {
       g.fillStyle(0xfff4d6, 1);
@@ -353,8 +358,12 @@ export class PlayScene extends Phaser.Scene {
         void tv;
         this.marker(x, y - 52, "TV");
       } else if (ch >= "1" && ch <= "4") {
-        this.interactives.push({ kind: "door", id: `f${floor}-${ch}`, x, y });
-        this.drawDoor(x, y, ch, "room");
+        const idx = Number(ch) - 1;
+        const room = FLOORS[floor - 1]?.levels[idx];
+        this.interactives.push({ kind: "door", id: room?.id ?? `f${floor}-${ch}`, x, y });
+        const short = (room?.name ?? ch).replace(/^(Candy Corn |Marsh Mellow |Lolly Pop |Butter Scotch |Sugar Rush |Cookie War |Sour |Raisin |Smash |Drunk |Scotch |Licorice |Cube |Sloppy |Ruin Pizza |Time Bomb |Grave )/i, "").trim();
+        const accents = [0xff8a3a, 0xffc0d8, 0xff4d7a, 0xe8b84a];
+        this.drawDoor(x, y, short || ch, "room", accents[idx]);
       }
     });
     if (!this.level.isHub && !this.level.isBoss) {
